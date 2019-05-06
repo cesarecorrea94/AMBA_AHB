@@ -20,17 +20,19 @@ class Mux : public Module,
 
 private:
     struct {
-        _Slave * _slave[nSlaves];
+        _Slave * slave[nSlaves];
         _Decoder2Mux * decoder;
     } _input;
 
     _MuxSignals _output[2]; // Old and Current Signals
     
-    _MuxSignals & output() { return this->_output[!Module::current_bus]; }
-    void output(_MuxSignals out) { this->_output[Module::current_bus] = out; }
+    _MuxSignals & output() { return this->_output[0]; }
+    void output(_MuxSignals out) { this->_output[0] = out; }
 public:
     void input(_Decoder2Mux * dec) { this->_input.decoder = dec; }
-    //void input(_Slave slv[nSlaves]) { this->_slave = slv; }
+    void input(_Slave slv[nSlaves]) {
+        for(unsigned i = 0; i < nSlaves; ++i) this->_input.slave[i] = &slv[i];
+    }
 
     Mux() {}
     ~Mux() {}
@@ -47,10 +49,10 @@ template<typename BUS_size, unsigned nSlaves>
 void Mux<BUS_size, nSlaves>::posEdgeClock() {
     unsigned HSELx;
     for(HSELx = 0; HSELx < nSlaves; ++HSELx)
-        if(this->_input.decoder->isSelected(this->_input._slave[HSELx]))
+        if(this->_input.decoder->isSelected(this->_input.slave[HSELx]))
             break;
     assert(HSELx < nSlaves);
-    this->output(this->_input._slave[HSELx]->getSlaveSignals());
+    this->output(this->_input.slave[HSELx]->getSlaveSignals());
 }
 
 #endif

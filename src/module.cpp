@@ -7,6 +7,7 @@
 #include "mux.h"
 
 bool Module::current_bus = 0;
+std::list<Module*> Module::modulos;
 
 int main() {
     Master<uint32_t> master;
@@ -18,16 +19,18 @@ int main() {
     Mux<uint32_t, 3> mux;
     Decoder<uint32_t, 3> decoder;
 
-    master.setMux(&mux);
+    master.input(&mux);
     mux.input(&decoder);
-    //mux.input(slaves);
-    decoder.master(&master);
+    mux.input(slaves);
+    decoder.input(&master);
+    decoder.setSlaves(slaves);
     for(unsigned i = 0; i < 3; ++i) {
         slaves[i].input(&master);
         slaves[i].input(&mux);
         slaves[i].input(&decoder);
     }
-    slaves[0].posEdgeClock();
+    Module::simulate();
+
     printf("Bye Bye World\n");
     return 0;
 }

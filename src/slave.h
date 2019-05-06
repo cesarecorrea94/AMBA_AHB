@@ -8,6 +8,8 @@ class Slave;
 #include "Signals/master.h"
 #include "Signals/slave_N_mux.h"
 #include "decoder.h"
+#include <cstdlib>
+#include <cstdio>
 
 template<typename BUS_size=uint32_t>
 class Slave : public Module
@@ -18,6 +20,10 @@ class Slave : public Module
     using _Mux2Slave = Mux2Slave;
     
 private:
+    struct {
+        bool HSELx = false;
+        unsigned wait;
+    } _state;
     BUS_size _address;
     unsigned _size;
     struct Input {
@@ -27,11 +33,11 @@ private:
     } _input;
     _SlaveSignals _output[2]; // Old and Current Signals
 
-    _SlaveSignals & output() { return this->_output[!Module::current_bus]; }
-    void output(_SlaveSignals out)    { this->_output[Module::current_bus] = out; }
-    void output(TransferResponse out) { this->_output[Module::current_bus].HRESP = out; }
-    void output(TransferStatus out)   { this->_output[Module::current_bus].HREADY = out; }
-    void output(BUS_size out)         { this->_output[Module::current_bus].HRDATA = out; }
+    _SlaveSignals & output() { return this->_output[0]; }
+    void output(_SlaveSignals out)    { this->_output[0] = out; }
+    void output(TransferResponse out) { this->_output[0].HRESP = out; }
+    void output(TransferStatus out)   { this->_output[0].HREADY = out; }
+    void output(BUS_size out)         { this->_output[0].HRDATA = out; }
 
 public:
     Slave(BUS_size addr, unsigned size) : _address(addr), _size(size) {}
@@ -47,20 +53,22 @@ public:
     void input(_Mux2Slave * mux)     { this->_input.HREADYIN = mux; }
 };
 
-#include <cstdlib>
-#include <cstdio>
-
 template<typename BUS_size>
 void Slave<BUS_size>::posEdgeClock() {
-    static bool HSELx = false;
-    static unsigned wait;
-    if(!HSELx) {
-        if(this->_input.HREADYIN->getTransferStatus() == PENDING) return;
-        if(this->_input.HSELx->isSelected(this)) HSELx = true;
-        wait = rand() % 3;
+    if(!_state.HSELx) {
+        if(this->_input.HREADYIN->getTransferStatus() == PENDING
+        || this->_input.master->getMasterSignals().HTRANS == IDLE
+        || ! this->_input.HSELx->isSelected(this)) {
+            this->output(OKAY);
+            this->output(DONE);
+            return;
+        }
+        _state.HSELx = true;
+        _state.wait = rand() % 5;
     }
-    if(wait) {
-        wait--;
+    if(_state.wait) {
+        printf("Wait %d\n", _state.wait);
+        _state.wait--;
         this->output(OKAY);
         this->output(PENDING);
         return;
@@ -81,7 +89,7 @@ void Slave<BUS_size>::posEdgeClock() {
     default:
         break;
     }
-    HSELx = false;
+    _state.HSELx = false;
 }
 
 #endif
