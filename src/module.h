@@ -5,14 +5,14 @@
 #include <stdint.h>
 
 class Module {
+protected:
     static bool current_bus;
+public:
     virtual void posEdgeClock() = 0;
 };
 
-bool Module::current_bus = 0;
-
-    //Global Signals
-    //bool HResetn;
-    //bool HCLK;
+//Global Signals
+//bool HResetn;
+//bool HCLK;
 
 #endif

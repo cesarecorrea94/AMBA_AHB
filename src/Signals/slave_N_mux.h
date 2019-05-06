@@ -18,8 +18,18 @@ template<typename BUS_size=uint32_t>
 struct SlaveNMuxSignals
 {
     BUS_size HRDATA;
-    TransferResponse HRESP;
-    TransferStatus HREADY;
+    TransferResponse HRESP = OKAY;
+    TransferStatus HREADY = DONE;
+};
+
+template<typename BUS_size=uint32_t>
+struct Mux2Master {
+    using _MuxSignals = SlaveNMuxSignals<BUS_size>;
+    virtual _MuxSignals & getMuxSignals() = 0;
+};
+
+struct Mux2Slave {
+    virtual TransferStatus & getTransferStatus() = 0;
 };
 
 #endif

@@ -50,7 +50,7 @@ struct MasterHADDR
 };
 
 template<typename BUS_size=uint32_t>
-struct MasterSignals : public MasterHADDR
+struct MasterSignals : public MasterHADDR<BUS_size>
 {
     // Control
     TransferDirection HWRITE;
@@ -61,6 +61,18 @@ struct MasterSignals : public MasterHADDR
     LockedTransfer HMASTLOCK;
     // Data
     BUS_size HWDATA;
+};
+
+template<typename BUS_size=uint32_t>
+struct Master2Slave {
+    using _MasterSignals = MasterSignals<BUS_size>;
+    virtual _MasterSignals & getMasterSignals() = 0;//operator()
+};
+
+template<typename BUS_size=uint32_t>
+struct Master2Decoder {
+    using _MasterHADDR = MasterHADDR<BUS_size>;
+    virtual _MasterHADDR & getMasterHADDR() = 0;
 };
 
 #endif
