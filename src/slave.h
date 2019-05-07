@@ -31,13 +31,13 @@ private:
         _Decoder2Slave * HSELx = 0;
         _Mux2Slave * HREADYIN = 0;
     } _input;
-    _SlaveSignals _output[2]; // Old and Current Signals
+    _SlaveSignals _output;
 
-    _SlaveSignals & output() { return this->_output[0]; }
-    void output(_SlaveSignals out)    { this->_output[0] = out; }
-    void output(TransferResponse out) { this->_output[0].HRESP = out; }
-    void output(TransferStatus out)   { this->_output[0].HREADY = out; }
-    void output(BUS_size out)         { this->_output[0].HRDATA = out; }
+    _SlaveSignals & output() { return this->_output; }
+    void output(_SlaveSignals out)    { this->_output = out; }
+    void output(TransferResponse out) { this->_output.HRESP = out; }
+    void output(TransferStatus out)   { this->_output.HREADY = out; }
+    void output(BUS_size out)         { this->_output.HRDATA = out; }
 
 public:
     Slave(BUS_size addr, unsigned size) : _address(addr), _size(size) {}
@@ -55,19 +55,19 @@ public:
 
 template<typename BUS_size>
 void Slave<BUS_size>::posEdgeClock() {
-    if(!_state.HSELx) {
-        if(this->_input.HREADYIN->getTransferStatus() == PENDING
-        || this->_input.master->getMasterSignals().HTRANS == IDLE
-        || ! this->_input.HSELx->isSelected(this)) {
-            this->output(OKAY);
-            this->output(DONE);
-            return;
-        }
-        _state.HSELx = true;
-        _state.wait = rand() % 5;
-    }
+    //this->_input.master->getMasterSignals().print();
+    if(!this->_input.HSELx->HSELx(this) // I'm not selected
+    ||  this->_input.master->getMasterSignals().HTRANS == IDLE
+    ||  this->_input.master->getMasterSignals().HTRANS == BUSY) {// It's an IDLE/BUSY transaction
+        this->output(OKAY);
+        this->output(DONE);
+        return;
+    } else // I'm selected, and it's a valid transaction
+    if(this->_input.HREADYIN->getTransferStatus() == DONE) {// It's first cycle
+        _state.wait = rand() % 3;
+        _state.wait *= _state.wait;
+    }// else: I'm handling this transaction already
     if(_state.wait) {
-        printf("Wait %d\n", _state.wait);
         _state.wait--;
         this->output(OKAY);
         this->output(PENDING);
@@ -75,21 +75,20 @@ void Slave<BUS_size>::posEdgeClock() {
     }
     switch (this->_input.master->getMasterSignals().HWRITE) {
     case WRITE:
-        printf("Device at %x read %x \n",
-            this->_address,
-            this->_input.master->getMasterSignals().HWDATA);
-        this->output(OKAY);
-        this->output(DONE);
+        printf("%x was written at %x\n",
+            this->_input.master->getMasterSignals().HWDATA,
+            this->_input.master->getMasterSignals().HADDR);
         break;
     case READ:
-        this->output(this->_address);
-        this->output(OKAY);
-        this->output(DONE);
+        this->output(this->_input.master->getMasterSignals().HADDR);
+        printf("%x was read from %x\n",
+            this->output().HRDATA,
+            this->_input.master->getMasterSignals().HADDR);
         break;
-    default:
-        break;
+    default: throw false;
     }
-    _state.HSELx = false;
+    this->output(OKAY);
+    this->output(DONE);
 }
 
 #endif

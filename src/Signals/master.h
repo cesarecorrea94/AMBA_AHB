@@ -8,14 +8,30 @@ typedef enum {
     WRITE   = 0b1,
     READ    = 0b0
 } TransferDirection;
-
+const char * etoa(TransferDirection in){
+    switch (in) {
+    case WRITE: return "WRITE"; break;
+    case READ:  return "READ "; break;
+    default: break;
+    }
+    throw false;
+}
 typedef enum {
     IDLE    = 0b00,
     BUSY    = 0b01,
     NONSEQ  = 0b10,
     SEQ     = 0b11
 } TransferType;
-
+const char * etoa(TransferType in){
+    switch (in) {
+    case IDLE:  return "IDLE  "; break;
+    case BUSY:  return "BUSY  "; break;
+    case NONSEQ:return "NONSEQ"; break;
+    case SEQ:   return "BUSY  "; break;
+    default: break;
+    }
+    throw false;
+}
 typedef enum {
     BYTE        = 0b000,
     HALFWORD    = 0b001,
@@ -26,7 +42,16 @@ typedef enum {
     _512bits    = 0b110,
     _1024bits   = 0b111
 } TransferSize;
-
+const char * etoa(TransferSize in){
+    switch (in) {
+    case BYTE:      return "BYTE      "; break;
+    case HALFWORD:  return "HALFWORD  "; break;
+    case WORD:      return "WORD      "; break;
+    case DOUBLEWORD:return "DOUBLEWORD"; break;
+    default:        return "***";        break;
+    }
+    throw false;
+}
 typedef enum {
     SINGLE  = 0b000,
     INCR    = 0b001,
@@ -37,12 +62,28 @@ typedef enum {
     WRAP16  = 0b110,
     INCR16  = 0b111
 } BurstOperation;
-
+const char * etoa(BurstOperation in){
+    switch (in) {
+    case SINGLE:return "SINGLE"; break;
+    case INCR:  return "INCR  "; break;
+    case WRAP4: return "WRAP4 "; break;
+    case INCR4: return "INCR4 "; break;
+    default:    return "***";    break;
+    }
+    throw false;
+}
 typedef enum {
     LOCKED      = 0b1,
     UNLOCKED    = 0b0
 } LockedTransfer;
-
+const char * etoa(LockedTransfer in){
+    switch (in) {
+    case LOCKED:    return "LOCKED  "; break;
+    case UNLOCKED:  return "UNLOCKED"; break;
+    default:break;
+    }
+    throw false;
+}
 template<typename BUS_size=uint32_t>
 struct MasterHADDR
 {
@@ -52,15 +93,21 @@ struct MasterHADDR
 template<typename BUS_size=uint32_t>
 struct MasterSignals : public MasterHADDR<BUS_size>
 {
+    using MasterHADDR<BUS_size>::HADDR;
     // Control
-    TransferDirection HWRITE = WRITE;
+    TransferDirection HWRITE;
     TransferSize HSIZE       = WORD;
     BurstOperation HBURST    = SINGLE;
     TransferType HTRANS      = IDLE;
     LockedTransfer HMASTLOCK = UNLOCKED;
     /* HPROT; */
     // Data
-    BUS_size HWDATA          = 0xCAFEBABE;
+    BUS_size HWDATA          = 0x0;
+    void print() {
+        printf("HADDR: %x, HWRITE: %s, HSIZE: %s, HBURST: %s, HTRANS: %s, HMASTLOCK: %s, HWDATA: %x\n",
+                HADDR, etoa(HWRITE), etoa(HSIZE), etoa(HBURST),
+                                                            etoa(HTRANS), etoa(HMASTLOCK), HWDATA);
+    }
 };
 
 template<typename BUS_size=uint32_t>

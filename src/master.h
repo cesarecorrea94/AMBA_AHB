@@ -23,40 +23,57 @@ class Master
 
     std::queue<MasterSignals<BUS_size>> transacoes;
 private:
+    bool next_transaction = false;
     _Mux2Master * _input;
     _MasterSignals _output[2]; // Old and Current Signals
-    _MasterSignals & output() { return this->_output[!Module::current_bus]; }
-    void output(_MasterSignals out)  { this->_output[ Module::current_bus] = out; }
+    _MasterSignals & output() { return this->_output[!next_transaction]; }
+    _MasterSignals & next()   { return this->_output[ next_transaction]; }
+    void next(_MasterSignals out)    { this->_output[ next_transaction] = out; }
+    void updateNext() {
+        if(! this->transacoes.empty()) {// Se há transações
+            this->next(this->transacoes.front());// Substitui next pela próxima transação
+            this->transacoes.pop();
+        } else { // Se acabaram as transações
+            _MasterSignals trans = this->next();
+            trans.HTRANS = IDLE;// Permanece IDLE nos próximos clocks
+            this->next(trans);
+            Module::stopSimulation = this->output().HTRANS == IDLE;
+        }
+    }
 public:    
     Master();
     ~Master() {}
     virtual void posEdgeClock() override;
 
     _MasterSignals & getMasterSignals() { return this->output(); }
-    _MasterHADDR & getMasterHADDR() { return this->output(); }
+    _MasterHADDR & getMasterHADDR()     { return this->output(); }
 
     void input(_Mux2Master * mux) { this->_input = mux; }
 };
 
 template<typename BUS_size>
 void Master<BUS_size>::posEdgeClock()  {
-    if(this->_input->getMuxSignals().HREADY == PENDING) {
-        this->output(this->output());
-        return;
-    } else if(this->output().HTRANS != IDLE &&
-                this->output().HWRITE == READ) {
-        printf("Master read %x \n",
-            this->_input->getMuxSignals().HRDATA);
-    }
-    if(! this->transacoes.empty()) {
-        this->output(this->transacoes.front());
-        this->transacoes.pop();
-    }
-    else {
-        _MasterSignals idle = this->output();
-        idle.HTRANS = IDLE;
-        this->output(idle);
-    }
+    this->_input->getMuxSignals().print();
+    if( this->output().HTRANS == IDLE
+    ||  this->output().HTRANS == BUSY) {// Se atual é IDLE ou BUSY
+        this->next_transaction = !this->next_transaction; // Move para a próxima transação
+        this->updateNext();
+    } else // atual é NONSEQ ou SEQ
+    if( this->_input->getMuxSignals().HREADY == DONE) {// Se atual terminou
+        if( this->output().HWRITE == READ) {// Se é leitura,
+            printf("Master reads %x from %x\n",
+                this->_input->getMuxSignals().HRDATA,
+                this->output().HADDR);
+        }
+        this->next_transaction = !this->next_transaction; // Move para a próxima transação
+        this->updateNext();
+    } else // atual é NONSEQ ou SEQ, e não terminou
+    if( this->next().HTRANS == IDLE
+    ||  this->next().HTRANS == BUSY) {// Se próxima é IDLE ou BUSY
+        this->updateNext();
+    } // else: next já está definido (NONSEQ ou SEQ), e não pode mudar (exceção: Erro na transação atual)
+    //this->output().print();
+    this->next().print();
 }
 
 template<typename BUS_size>
@@ -64,29 +81,33 @@ Master<BUS_size>::Master() {
     _MasterSignals item;
     item.HTRANS = NONSEQ;
     item.HADDR = 0x10000;
-    item.HWRITE = WRITE;
-    item.HWDATA = 0xCAFE1111;
-    transacoes.push(item);
-
-    item = _MasterSignals();
-    item.HTRANS = NONSEQ;
-    item.HADDR = 0x30000;
-    item.HWRITE = WRITE;
-    item.HWDATA = 0xCAFE3333;
-    transacoes.push(item);
-
-    item = _MasterSignals();
-    item.HTRANS = NONSEQ;
-    item.HADDR = 0x30000;
     item.HWRITE = READ;
-    item.HWDATA = 0xCAFE0123;
     transacoes.push(item);
 
     item = _MasterSignals();
     item.HTRANS = NONSEQ;
     item.HADDR = 0x10000;
     item.HWRITE = WRITE;
-    item.HWDATA = 0xCAFE1111;
+    item.HWDATA = 0xCAFEBABE;
+    transacoes.push(item);
+
+    item = _MasterSignals();
+    item.HTRANS = NONSEQ;
+    item.HADDR = 0x2FF00;
+    item.HWRITE = WRITE;
+    item.HWDATA = 0xDEADC0DE;
+    transacoes.push(item);
+
+    item = _MasterSignals();
+    item.HTRANS = NONSEQ;
+    item.HADDR = 0x3FF00;
+    item.HWRITE = READ;
+    transacoes.push(item);
+
+    item = _MasterSignals();
+    item.HTRANS = NONSEQ;
+    item.HADDR = 0x20000;
+    item.HWRITE = READ;
     transacoes.push(item);
 }
 

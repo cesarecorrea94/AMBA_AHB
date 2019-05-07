@@ -9,15 +9,14 @@
 class Module {
     static std::list<Module*> modulos;
 protected:
-    static bool current_bus;
+    static bool stopSimulation;
     Module() {
         modulos.push_back(this);
     }
 public:
     virtual void posEdgeClock() = 0;
     static void simulate() {
-        for(unsigned nClocks = 0; nClocks < 10; ++nClocks) {
-            current_bus = !current_bus;
+        while(!stopSimulation) {
             printf("\t*Clock*\n");
             for (std::list<Module*>::iterator it = modulos.begin();
                 it != modulos.end(); ++it) {
@@ -26,6 +25,9 @@ public:
         }
     }
 };
+
+std::list<Module*> Module::modulos;
+bool Module::stopSimulation = false;
 
 //Global Signals
 //bool HResetn;
